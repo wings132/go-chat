@@ -52,6 +52,7 @@ func (dispatcher Dispatcher) WriteData(data []byte) (err error) {
 	var bytes [4]byte
 	binary.BigEndian.PutUint32(bytes[0:4], dataLen)
 
+	fmt.Println("send msg to ",dispatcher.Conn.RemoteAddr())
 	// 将消息长度发送给客户端
 	_, err = dispatcher.Conn.Write(bytes[:])
 	if err != nil {

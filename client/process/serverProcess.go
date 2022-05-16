@@ -1,13 +1,17 @@
 package process
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"go-chat/client/logger"
 	"go-chat/client/model"
 	"go-chat/client/utils"
 	common "go-chat/common/message"
 	"net"
+	"runtime"
+	"strconv"
 )
 
 func dealLoginResponse(responseMsg common.ResponseMessage) (err error) {
@@ -105,6 +109,17 @@ func showPointToPointMessage(responseMsg common.ResponseMessage) (err error) {
 	return
 }
 
+func GetGid() (gid uint64) {
+	b := make([]byte, 64)
+	b = b[:runtime.Stack(b, false)]
+	b = bytes.TrimPrefix(b, []byte("goroutine "))
+	b = b[:bytes.IndexByte(b, ' ')]
+	n, err := strconv.ParseUint(string(b), 10, 64)
+	if err != nil {
+	}
+	return n
+}
+
 // 处理服务端的返回
 func Response(conn net.Conn, errMsg chan error) (err error) {
 	var responseMsg common.ResponseMessage
@@ -113,9 +128,11 @@ func Response(conn net.Conn, errMsg chan error) (err error) {
 	for {
 		responseMsg, err = dispatcher.ReadData()
 		if err != nil {
-			logger.Error("Waiting response error: %v\n", err)
+			logger.Error("Waiting response error: %v   goroutine id %v\n", err, GetGid())
 			return
 		}
+
+		fmt.Println("goroutine id = ",GetGid())
 
 		// 根据服务端返回的消息类型，进行相应的处理
 		switch responseMsg.Type {
@@ -138,10 +155,6 @@ func Response(conn net.Conn, errMsg chan error) (err error) {
 			errMsg <- err
 		default:
 			logger.Error("Unknown message type!")
-		}
-
-		if err != nil {
-			return
 		}
 	}
 }

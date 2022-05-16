@@ -4,14 +4,16 @@ import (
 	"fmt"
 	"go-chat/client/logger"
 	"go-chat/client/process"
+
+	gp "github.com/howeyc/gopass"
 )
 
 func main() {
 	var (
-		key              int
-		loop             = true
-		userName         string
-		password         string
+		key             int
+		loop            = true
+		userName        string
+		password        string
 		passwordConfirm string
 	)
 
@@ -27,10 +29,13 @@ func main() {
 		switch key {
 		case 1:
 			logger.Info("sign In Please\r\n")
-			logger.Notice("Username:\n")
+			logger.Notice("Username:")
 			fmt.Scanf("%s\n", &userName)
-			logger.Notice("Password:\n")
-			fmt.Scanf("%s\n", &password)
+
+			logger.Notice("Password:")
+			// fmt.Scanf("%s\n", &password)
+			ps, _ := gp.GetPasswdMasked()
+			password = string(ps)
 
 			// err := login(userName, password)
 			up := process.UserProcess{}
@@ -43,12 +48,23 @@ func main() {
 			}
 		case 2:
 			logger.Info("Create account\n")
-			logger.Notice("user name：\n")
+
+			// get username
+			logger.Notice("user name：")
 			fmt.Scanf("%s\n", &userName)
-			logger.Notice("password：\n")
-			fmt.Scanf("%s\n", &password)
-			logger.Notice("password confirm：\n")
-			fmt.Scanf("%s\n", &passwordConfirm)
+
+			// get password
+			logger.Notice("password：")
+			//fmt.Scanf("%s\n", &password)
+			ps, _ := gp.GetPasswdMasked()
+			password = string(ps)
+
+			//password confirm
+			logger.Notice("passwordConfirm：")
+			//fmt.Scanf("%s\n", &passwordConfirm)
+			ps2, _ := gp.GetPasswdMasked()
+			passwordConfirm = string(ps2)
+			fmt.Println(ps, ps2)
 
 			up := process.UserProcess{}
 			err := up.Register(userName, password, passwordConfirm)

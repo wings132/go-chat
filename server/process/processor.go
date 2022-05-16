@@ -40,22 +40,8 @@ func (this *Processor) messageProcess(message common.Message) (err error) {
 			fmt.Printf("get all online user list error: %v\n", err)
 		}
 	case common.PointToPointMessageType:
-		fmt.Println("point to point comminite!")
 		pop := PointToPointMessageProcess{}
-		err = pop.sendMessageToTargetUser(message.Data)
-		var code int
-		if err != nil {
-			code = 400
-		} else {
-			code = 100
-		}
-
-		// responseClient(conn net.Conn, code int, data string, err error) {
-		err := pop.responseClient(this.Conn, code, "", err)
-		if err != nil {
-			fmt.Printf("some err when popmessage: %v", err)
-		}
-
+		err = pop.sendMessageToTargetUser(this.Conn, message.Data)
 	default:
 		fmt.Printf("other type\n")
 	}
@@ -78,6 +64,8 @@ func (this *Processor) MainProcess() {
 			}
 			fmt.Printf("get login message error: %v", err)
 		}
+
+		fmt.Println("sender is ", this.Conn.RemoteAddr())
 
 		// 处理来客户端的消息
 		// 按照消息的类型，使用不同的处理方法

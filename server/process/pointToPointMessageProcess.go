@@ -11,7 +11,7 @@ import (
 
 type PointToPointMessageProcess struct{}
 
-func (this PointToPointMessageProcess) sendMessageToTargetUser(message string) (err error) {
+func (this PointToPointMessageProcess) sendMessageToTargetUser(sender net.Conn, message string) (err error) {
 	var pointToPointMessage common.PointToPointMessage
 	err = json.Unmarshal([]byte(message), &pointToPointMessage)
 	if err != nil {
@@ -22,6 +22,12 @@ func (this PointToPointMessageProcess) sendMessageToTargetUser(message string) (
 	conn, err := clientConn.SearchByUserName(pointToPointMessage.TargetUserName)
 	if err != nil {
 		return
+	}
+
+	fmt.Println("conn.RemoteAddr() = ", conn.RemoteAddr())
+	fmt.Println("sender.RemoteAddr() = ", sender.RemoteAddr())
+	if conn.RemoteAddr() == sender.RemoteAddr() {
+		fmt.Println("send msg to someone self")
 	}
 
 	var responseMessage common.ResponseMessage
@@ -41,6 +47,7 @@ func (this PointToPointMessageProcess) sendMessageToTargetUser(message string) (
 
 	responseMessage.Code = 200
 
+	fmt.Println("send data=",responseMessage)
 	responseData, err := json.Marshal(responseMessage)
 	if err != nil {
 		return
@@ -60,6 +67,7 @@ func (this *PointToPointMessageProcess) responseClient(conn net.Conn, code int, 
 		Data:  data,
 	}
 
+	fmt.Println("responseClient data = ",responseMessage)
 	responseData, err := json.Marshal(responseMessage)
 	if err != nil {
 		fmt.Printf("some error when generate response message, error: %v", err)

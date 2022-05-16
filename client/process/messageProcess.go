@@ -8,7 +8,24 @@ import (
 	"net"
 )
 
-type MessageProcess struct{}
+type MessageProcess struct {
+	tcpConn net.Conn
+	errChan chan error
+}
+
+func (msgp *MessageProcess) getTcpConn() (conn net.Conn) {
+	if msgp.tcpConn == nil {
+		serverInfo := config.Configuration.ServerInfo
+		msgp.tcpConn, _ = net.Dial("tcp", serverInfo.Host)
+	}
+	return msgp.tcpConn
+}
+func (msgp *MessageProcess) getErrChan() (ch chan error) {
+	if msgp.errChan == nil {
+		msgp.errChan = make(chan error)
+	}
+	return msgp.errChan
+}
 
 // user send message to server
 func (msgProc MessageProcess) SendGroupMessageToServer(groupID int, userName string, content string) (err error) {
@@ -44,12 +61,7 @@ func (msgProc MessageProcess) SendGroupMessageToServer(groupID int, userName str
 }
 
 // request all online user
-func (msg MessageProcess) GetOnlineUerList() (err error) {
-	serverInfo := config.Configuration.ServerInfo
-	conn, err := net.Dial("tcp", serverInfo.Host)
-	if err != nil {
-		return
-	}
+func (msgp *MessageProcess) GetOnlineUerList() (err error) {
 
 	var message = common.Message{}
 	message.Type = common.ShowAllOnlineUsersType
@@ -65,15 +77,20 @@ func (msg MessageProcess) GetOnlineUerList() (err error) {
 		return
 	}
 
-	dispatcher := utils.Dispatcher{Conn: conn}
+	dispatcher := utils.Dispatcher{Conn: msgp.getTcpConn()}
 	err = dispatcher.SendData(data)
 	if err != nil {
 		return
 	}
 
-	errMsg := make(chan error)
-	go Response(conn, errMsg)
-	err = <-errMsg
+	// 这段代码里的channel会阻塞，暂时不知道为什么，需要深入学习channel
+	// errMsg := make(chan error)
+	// go Response(msg.tcpConn, errMsg)
+	// err = <-errMsg
+
+	//go Response(msgp.getTcpConn(), msgp.getErrChan())
+	err = <-msgp.getErrChan()
+
 	if err != nil {
 		return
 	}
@@ -82,16 +99,9 @@ func (msg MessageProcess) GetOnlineUerList() (err error) {
 		showAfterLoginMenu()
 	}
 
-	return
 }
 
-func (msgProc MessageProcess) PointToPointCommunication(targetUserName, sourceUserName, message string) (conn net.Conn, err error) {
-	serverInfo := config.Configuration.ServerInfo
-	conn, err = net.Dial("tcp", serverInfo.Host)
-	if err != nil {
-		return
-	}
-	// defer conn.Close()
+func (msgp *MessageProcess) PointToPointCommunication(targetUserName, sourceUserName, message string) (err error) {
 
 	var pointToPointMessage common.Message
 
@@ -115,7 +125,7 @@ func (msgProc MessageProcess) PointToPointCommunication(targetUserName, sourceUs
 		return
 	}
 
-	dispatcher := utils.Dispatcher{Conn: conn}
+	dispatcher := utils.Dispatcher{Conn: msgp.getTcpConn()}
 	err = dispatcher.SendData(data)
 	return
 }

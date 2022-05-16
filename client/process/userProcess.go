@@ -12,9 +12,12 @@ import (
 	"go-chat/config"
 	"net"
 	"os"
+	"time"
 )
 
 type UserProcess struct{}
+
+var msgp = MessageProcess{}
 
 // 登陆成功菜单显示：
 func showAfterLoginMenu() {
@@ -33,8 +36,7 @@ func showAfterLoginMenu() {
 	fmt.Scanf("%d\n", &key)
 	switch key {
 	case 1:
-		messageProcess := MessageProcess{}
-		err = messageProcess.GetOnlineUerList()
+		err = msgp.GetOnlineUerList()
 		if err != nil {
 			logger.Error("Some error occurred when get online user list, error: %v\n", err)
 		}
@@ -46,8 +48,7 @@ func showAfterLoginMenu() {
 			logger.Error("Some error occurred when you input, error: %v\n", err)
 		}
 		currentUser := model.CurrentUser
-		messageProcess := MessageProcess{}
-		err = messageProcess.SendGroupMessageToServer(0, currentUser.UserName, content)
+		err = msgp.SendGroupMessageToServer(0, currentUser.UserName, content)
 		if err != nil {
 			logger.Error("Some error occurred when send data to server: %v\n", err)
 		} else {
@@ -63,39 +64,38 @@ func showAfterLoginMenu() {
 		if err != nil {
 			logger.Error("Some error occurred when you input, error: %v\n", err)
 		}
-		messageProcess := MessageProcess{}
-		conn, err := messageProcess.PointToPointCommunication(targetUserName, model.CurrentUser.UserName, content)
+		err := msgp.PointToPointCommunication(targetUserName, model.CurrentUser.UserName, content)
 		if err != nil {
 			logger.Error("Some error occurred when point to point comunication: %v\n", err)
 			return
 		}
 
-		errMsg := make(chan error)
-		go Response(conn, errMsg)
-		err = <-errMsg
+		//go Response(msgp.getTcpConn(), msgp.getErrChan())
+		err = <-msgp.getErrChan()
 
-		if err.Error() != "<nil>" {
-			logger.Error("Send message error: %v\n", err)
-		}
+		//if err != nil {
+		//	logger.Error("Send message error: %v\n", err)
+		//}
+
 	case 4:
 		logger.Warn("Exit...\n")
 		os.Exit(0)
 	default:
 		logger.Info("Selected invalid!\n")
 	}
+	time.Sleep(100 * time.Millisecond)
 }
 
 // 用户登陆
 func (up UserProcess) Login(userName, password string) (err error) {
 	// connect server
 
-	serverInfo := config.Configuration.ServerInfo
-	conn, err := net.Dial("tcp", serverInfo.Host)
-
-	if err != nil {
-		logger.Error("Connect server error: %v", err)
-		return
-	}
+	//serverInfo := config.Configuration.ServerInfo
+	//conn, err := net.Dial("tcp", serverInfo.Host)
+	//if err != nil {
+	//	logger.Error("Connect server error: %v", err)
+	//	return
+	//}
 
 	var message common.Message
 	message.Type = common.LoginMessageType
@@ -118,15 +118,14 @@ func (up UserProcess) Login(userName, password string) (err error) {
 	message.Type = common.LoginMessageType
 	data, _ = json.Marshal(message)
 
-	dispatcher := utils.Dispatcher{Conn: conn}
+	dispatcher := utils.Dispatcher{Conn: msgp.getTcpConn()}
 	err = dispatcher.SendData(data)
 	if err != nil {
 		return
 	}
 
-	errMsg := make(chan error)
-	go Response(conn, errMsg)
-	err = <-errMsg
+	go Response(msgp.getTcpConn(), msgp.getErrChan())
+	err = <-msgp.getErrChan()
 
 	if err != nil {
 		return

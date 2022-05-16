@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+// option 指令生成一个指定的文件夹，然后把pb.go保存进去
+// 通过go_package指定pb文件生成的位置
+option go_package ="../proto";
+
+//protoc --go_out=. *.proto
