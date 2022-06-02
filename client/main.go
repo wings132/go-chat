@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"go-chat/client/logger"
 	"go-chat/client/process"
+	"google.golang.org/grpc"
+	"log"
 
 	gp "github.com/howeyc/gopass"
 )
@@ -14,8 +16,14 @@ func main() {
 		loop            = true
 		userName        string
 		password        string
-		passwordConfirm string
 	)
+
+	conn, err := grpc.Dial("127.0.0.1:8889", grpc.WithInsecure())
+	if err != nil {
+		log.Fatalf("can't connect server: %v", err)
+		return
+	}
+	defer conn.Close()
 
 	for loop {
 		logger.Info("\n----------------Welcome to the chat room--------------\n")
@@ -38,13 +46,14 @@ func main() {
 			password = string(ps)
 
 			// err := login(userName, password)
-			up := process.UserProcess{}
-			err := up.Login(userName, password)
+			up := process.UserProcess{Conn:conn}
+			ret := up.Login(userName, password)
 
-			if err != nil {
-				logger.Error("Login failed: %v\r\n", err)
-			} else {
+			if ret {
 				logger.Success("Login succeed!\r\n")
+			} else {
+				logger.Error("Login failed\r\n")
+				return
 			}
 		case 2:
 			logger.Info("Create account\n")
@@ -59,16 +68,9 @@ func main() {
 			ps, _ := gp.GetPasswdMasked()
 			password = string(ps)
 
-			//password confirm
-			logger.Notice("passwordConfirm：")
-			//fmt.Scanf("%s\n", &passwordConfirm)
-			ps2, _ := gp.GetPasswdMasked()
-			passwordConfirm = string(ps2)
-			fmt.Println(ps, ps2)
-
-			up := process.UserProcess{}
-			err := up.Register(userName, password, passwordConfirm)
-			if err != nil {
+			up := process.UserProcess{Conn:conn}
+			ret := up.Register(userName, password)
+			if !ret {
 				logger.Error("Create account failed: %v\n", err)
 			}
 		case 3:

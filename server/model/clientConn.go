@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"net"
 )
 
@@ -37,4 +38,10 @@ func (cc ClientConn) SearchByUserName(userName string) (connInfo net.Conn, err e
 
 	connInfo = ClientConnsMap[user.ID].Conn
 	return
+}
+
+func (cc ClientConn)ShowAllUsers()  {
+	for k, v := range ClientConnsMap{
+		fmt.Printf("index[%d] username[%s]\n",k, v.UserName)
+	}
 }

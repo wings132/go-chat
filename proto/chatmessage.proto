@@ -1,0 +1,35 @@
+syntax = "proto3";
+option go_package = "go-chat/proto";
+
+package chatmessage;
+
+enum status{
+  NONE  = 0;
+  OK  = 1;
+  FAIL  = 2;
+}
+
+message LoginReq{
+  string username = 1;
+  string password = 2;
+}
+
+message LoginRes{
+  status result = 1;
+  int32 sss = 2;
+}
+
+message RegisterReq{
+  string username = 1;
+  string password = 2;
+}
+
+message RegisterRes{
+  status result = 1;
+  string reason = 2;
+}
+
+service chatService{
+  rpc onLoginReq(LoginReq) returns(LoginRes){}
+  rpc onRegisterReq(RegisterReq) returns(RegisterRes){}
+}

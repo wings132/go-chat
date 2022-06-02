@@ -4,4 +4,20 @@ syntax = "proto3";
 // 通过go_package指定pb文件生成的位置
 option go_package ="../proto";
 
-//protoc --go_out=. *.proto
+message LoginReq{
+  string userName   = 1;
+  string passWord   = 2;
+}
+
+message LoginResp{
+  int32 loginResult   = 1;  // 1成功，2失败
+}
+
+message RegisterReq{
+  string userName   = 1;
+  string passWord   = 2;
+}
+
+message RegisterResp{
+  int32 RegisterResult   = 1;  // 1成功，2失败
+}

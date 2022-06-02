@@ -1,16 +1,102 @@
 package process
 
 import (
+	"context"
 	"fmt"
 	common "go-chat/common/message"
+	pb "go-chat/proto"
 	"go-chat/server/model"
 	"go-chat/server/utils"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/peer"
 	"io"
+	"log"
+	"math/rand"
 	"net"
+	"time"
 )
 
 type Processor struct {
 	Conn net.Conn
+	pb.UnimplementedChatServiceServer
+}
+
+func (processor Processor) OnLoginReq(ctx context.Context, req *pb.LoginReq) (*pb.LoginRes, error) {
+	remoteCon, _ := peer.FromContext(ctx)
+	log.Printf("username: %s, password: %s,  from %s \n", req.Username, req.Password, remoteCon.Addr.String())
+
+	clientOptions := options.Client().ApplyURI("mongodb://127.0.0.1:27017")
+	client, err := mongo.Connect(context.TODO(), clientOptions)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Check the connection 测试连接
+	err = client.Ping(context.TODO(), nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	_, err = client.ListDatabases(context.TODO(), bson.M{})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	collection := client.Database("test").Collection("user")
+	var result bson.M
+	err = collection.FindOne(ctx, bson.D{{"userName", req.Username},{"passWord",req.Password}}).Decode(&result)
+	if err == mongo.ErrNoDocuments {
+		fmt.Printf("No document was found with the title\n")
+		return &pb.LoginRes{ Result: pb.Status_FAIL}, nil
+	}
+	if err != nil {
+		panic(any(err))
+	}
+
+
+	clientConn := model.ClientConn{}
+	rand.Seed(time.Now().UnixNano())
+	clientConn.Save(rand.Intn(1000000), req.Username, nil)
+	clientConn.ShowAllUsers()
+
+	return &pb.LoginRes{ Result: pb.Status_OK}, nil
+}
+
+func (processor Processor) OnRegisterReq(ctx context.Context, req *pb.RegisterReq) (*pb.RegisterRes, error) {
+
+	clientOptions := options.Client().ApplyURI("mongodb://127.0.0.1:27017")
+	client, err := mongo.Connect(context.TODO(), clientOptions)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Check the connection 测试连接
+	err = client.Ping(context.TODO(), nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	_, err = client.ListDatabases(context.TODO(), bson.M{})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	collection := client.Database("test").Collection("user")
+	result, err := collection.InsertOne(ctx, bson.D{{"userName", req.Username},{"passWord",req.Password}})
+	if err != nil {
+		fmt.Printf("register err %s\n",err.Error())
+		return &pb.RegisterRes{Result:pb.Status_FAIL,Reason: err.Error()},nil
+	}
+	fmt.Printf("Inserted document with _id: %v\n", result.InsertedID)
+
+	return &pb.RegisterRes{},nil
 }
 
 // 处理消息
@@ -48,8 +134,23 @@ func (this *Processor) messageProcess(message common.Message) (err error) {
 	return
 }
 
-// 处理和用户的之间的通讯
-func (this *Processor) MainProcess() {
+func (this *Processor) MainProcess(){
+	lis, err := net.Listen("tcp", "127.0.0.1:8889")
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+
+	s := grpc.NewServer()
+
+	pb.RegisterChatServiceServer(s, Processor{})
+	log.Printf("server listening at %v", lis.Addr())
+	if err := s.Serve(lis); err != nil {
+		log.Fatalf("failed to serve: %v", err)
+	}
+}
+
+// MainProcess 处理和用户的之间的通讯
+func (this *Processor) MainProcess2() {
 
 	// 循环读来自客户端的消息
 	for {
