@@ -21,7 +21,7 @@ type UserProcess struct{
 var msgp = MessageProcess{}
 
 // 登陆成功菜单显示：
-func showAfterLoginMenu() {
+func (up *UserProcess) ShowAfterLoginMenu() {
 	logger.Info("\n----------------login succeed!----------------\n")
 	logger.Info("\t\tselect what you want to do\n")
 	logger.Info("\t\t1. Show all online users\n")
@@ -37,10 +37,7 @@ func showAfterLoginMenu() {
 	fmt.Scanf("%d\n", &key)
 	switch key {
 	case 1:
-		err = msgp.GetOnlineUerList()
-		if err != nil {
-			logger.Error("Some error occurred when get online user list, error: %v\n", err)
-		}
+		up.ShowAllUserOnline()
 		return
 	case 2:
 		logger.Notice("Say something:\n")
@@ -240,4 +237,29 @@ func (up *UserProcess) Register(userName, password string) (ret bool) {
 	//err = <-errMsg
 
 	return
+}
+
+func (up *UserProcess) ShowAllUserOnline()  {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	if up.Conn.GetState() != connectivity.Ready {
+		beforeState := up.Conn.GetState()
+		if !up.Conn.WaitForStateChange(ctx, up.Conn.GetState()) {
+			log.Printf("Login Error state[%s] WaitForStateChange timeout", up.Conn.GetState())
+			return
+		}
+		if up.Conn.GetState() != connectivity.Ready {
+			fmt.Printf("Login Error state before[%d]  state after %s\n", beforeState, up.Conn.GetState())
+			return
+		}
+	}
+
+	c := pb.NewChatServiceClient(up.Conn)
+	res, _ := c.OnShowAllUserOnline(ctx, &pb.ShowAllUserOnlineReq{})
+
+	fmt.Println("index","username")
+	for i:= 0; i<len(res.Users);i++ {
+		fmt.Println(i,res.Users[i])
+	}
 }

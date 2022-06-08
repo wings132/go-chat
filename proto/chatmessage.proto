@@ -29,7 +29,23 @@ message RegisterRes{
   string reason = 2;
 }
 
+message ShowAllUserOnlineReq{}
+message ShowAllUserOnlineRes{
+  repeated string users = 1;
+}
+
+// point-to-point chat
+message P2PChatReq{
+  string friendName = 1;
+  string msg = 2;
+}
+message P2PChatRes{
+  status result = 1;
+}
+
 service chatService{
   rpc onLoginReq(LoginReq) returns(LoginRes){}
   rpc onRegisterReq(RegisterReq) returns(RegisterRes){}
+  rpc onShowAllUserOnline(ShowAllUserOnlineReq) returns(ShowAllUserOnlineRes){}
+  rpc onP2PChatReq(P2PChatReq) returns(stream P2PChatRes){}
 }

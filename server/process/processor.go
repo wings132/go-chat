@@ -5,22 +5,19 @@ import (
 	"fmt"
 	common "go-chat/common/message"
 	pb "go-chat/proto"
-	"go-chat/server/model"
-	"go-chat/server/utils"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/peer"
-	"io"
 	"log"
-	"math/rand"
 	"net"
 	"time"
 )
 
 type Processor struct {
-	Conn net.Conn
+	ClientConnsMap map[string]string
+	ser grpc.Server
 	pb.UnimplementedChatServiceServer
 }
 
@@ -59,10 +56,12 @@ func (processor Processor) OnLoginReq(ctx context.Context, req *pb.LoginReq) (*p
 	}
 
 
-	clientConn := model.ClientConn{}
-	rand.Seed(time.Now().UnixNano())
-	clientConn.Save(rand.Intn(1000000), req.Username, nil)
-	clientConn.ShowAllUsers()
+	//clientConn := model.ClientConn{}
+	//rand.Seed(time.Now().UnixNano())
+	//clientConn.Save(req.Username,remoteCon.Addr.String())
+	//clientConn.ShowAllUsers()
+
+	processor.ClientConnsMap[req.Username] = remoteCon.Addr.String()
 
 	return &pb.LoginRes{ Result: pb.Status_OK}, nil
 }
@@ -99,39 +98,52 @@ func (processor Processor) OnRegisterReq(ctx context.Context, req *pb.RegisterRe
 	return &pb.RegisterRes{},nil
 }
 
+func (processor Processor) OnShowAllUserOnline(context.Context, *pb.ShowAllUserOnlineReq) (*pb.ShowAllUserOnlineRes, error){
+	res := pb.ShowAllUserOnlineRes{}
+	for k,_ := range processor.ClientConnsMap{
+		res.Users = append(res.Users, k)
+	}
+	processor.ser.GetServiceInfo()
+	return &res, nil
+}
+
+func (processor Processor) OnP2PChatReq(req *pb.P2PChatReq, srv pb.ChatService_OnP2PChatReqServer) error{
+
+}
+
 // 处理消息
 // 根据消息的类型，使用对应的处理方式
 func (this *Processor) messageProcess(message common.Message) (err error) {
-	switch message.Type {
-	case common.LoginMessageType:
-		up := UserProcess{Conn: this.Conn}
-		err = up.UserLogin(message.Data)
-		if err != nil {
-			fmt.Printf("some error: %v\n", err)
-		}
-	case common.RegisterMessageType:
-		up := UserProcess{Conn: this.Conn}
-		err = up.UserRegister(message.Data)
-		if err != nil {
-			fmt.Printf("some error when register: %v\n", err)
-		}
-	case common.UserSendGroupMessageType:
-		fmt.Println("user send group message!")
-		gmp := GroupMessageProcess{}
-		gmp.sendToGroupUsers(message.Data)
-	case common.ShowAllOnlineUsersType:
-		olP := OnlineInfoProcess{this.Conn}
-		err = olP.showAllOnlineUserList()
-		if err != nil {
-			fmt.Printf("get all online user list error: %v\n", err)
-		}
-	case common.PointToPointMessageType:
-		pop := PointToPointMessageProcess{}
-		err = pop.sendMessageToTargetUser(this.Conn, message.Data)
-	default:
-		fmt.Printf("other type\n")
-	}
-	return
+	//switch message.Type {
+	//case common.LoginMessageType:
+	//	up := UserProcess{Conn: this.Conn}
+	//	err = up.UserLogin(message.Data)
+	//	if err != nil {
+	//		fmt.Printf("some error: %v\n", err)
+	//	}
+	//case common.RegisterMessageType:
+	//	up := UserProcess{Conn: this.Conn}
+	//	err = up.UserRegister(message.Data)
+	//	if err != nil {
+	//		fmt.Printf("some error when register: %v\n", err)
+	//	}
+	//case common.UserSendGroupMessageType:
+	//	fmt.Println("user send group message!")
+	//	gmp := GroupMessageProcess{}
+	//	gmp.sendToGroupUsers(message.Data)
+	//case common.ShowAllOnlineUsersType:
+	//	olP := OnlineInfoProcess{this.Conn}
+	//	err = olP.showAllOnlineUserList()
+	//	if err != nil {
+	//		fmt.Printf("get all online user list error: %v\n", err)
+	//	}
+	//case common.PointToPointMessageType:
+	//	pop := PointToPointMessageProcess{}
+	//	err = pop.sendMessageToTargetUser(this.Conn, message.Data)
+	//default:
+	//	fmt.Printf("other type\n")
+	//}
+	return nil
 }
 
 func (this *Processor) MainProcess(){
@@ -153,27 +165,27 @@ func (this *Processor) MainProcess(){
 func (this *Processor) MainProcess2() {
 
 	// 循环读来自客户端的消息
-	for {
-		dispatcher := utils.Dispatcher{Conn: this.Conn}
-		message, err := dispatcher.ReadData()
-		if err != nil {
-			if err == io.EOF {
-				cc := model.ClientConn{}
-				cc.Del(this.Conn)
-				fmt.Printf("client closed!\n")
-				break
-			}
-			fmt.Printf("get login message error: %v", err)
-		}
-
-		fmt.Println("sender is ", this.Conn.RemoteAddr())
-
-		// 处理来客户端的消息
-		// 按照消息的类型，使用不同的处理方法
-		err = this.messageProcess(message)
-		if err != nil {
-			fmt.Printf("some error: %v\n", err)
-			break
-		}
-	}
+	//for {
+	//	dispatcher := utils.Dispatcher{Conn: this.Conn}
+	//	message, err := dispatcher.ReadData()
+	//	if err != nil {
+	//		if err == io.EOF {
+	//			cc := model.ClientConn{}
+	//			cc.Del(this.Conn)
+	//			fmt.Printf("client closed!\n")
+	//			break
+	//		}
+	//		fmt.Printf("get login message error: %v", err)
+	//	}
+	//
+	//	fmt.Println("sender is ", this.Conn.RemoteAddr())
+	//
+	//	// 处理来客户端的消息
+	//	// 按照消息的类型，使用不同的处理方法
+	//	err = this.messageProcess(message)
+	//	if err != nil {
+	//		fmt.Printf("some error: %v\n", err)
+	//		break
+	//	}
+	//}
 }

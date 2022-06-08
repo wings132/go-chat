@@ -24,6 +24,8 @@ const _ = grpc.SupportPackageIsVersion7
 type ChatServiceClient interface {
 	OnLoginReq(ctx context.Context, in *LoginReq, opts ...grpc.CallOption) (*LoginRes, error)
 	OnRegisterReq(ctx context.Context, in *RegisterReq, opts ...grpc.CallOption) (*RegisterRes, error)
+	OnShowAllUserOnline(ctx context.Context, in *ShowAllUserOnlineReq, opts ...grpc.CallOption) (*ShowAllUserOnlineRes, error)
+	OnP2PChatReq(ctx context.Context, in *P2PChatReq, opts ...grpc.CallOption) (ChatService_OnP2PChatReqClient, error)
 }
 
 type chatServiceClient struct {
@@ -52,12 +54,55 @@ func (c *chatServiceClient) OnRegisterReq(ctx context.Context, in *RegisterReq, 
 	return out, nil
 }
 
+func (c *chatServiceClient) OnShowAllUserOnline(ctx context.Context, in *ShowAllUserOnlineReq, opts ...grpc.CallOption) (*ShowAllUserOnlineRes, error) {
+	out := new(ShowAllUserOnlineRes)
+	err := c.cc.Invoke(ctx, "/chatmessage.chatService/onShowAllUserOnline", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *chatServiceClient) OnP2PChatReq(ctx context.Context, in *P2PChatReq, opts ...grpc.CallOption) (ChatService_OnP2PChatReqClient, error) {
+	stream, err := c.cc.NewStream(ctx, &ChatService_ServiceDesc.Streams[0], "/chatmessage.chatService/onP2PChatReq", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &chatServiceOnP2PChatReqClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type ChatService_OnP2PChatReqClient interface {
+	Recv() (*P2PChatRes, error)
+	grpc.ClientStream
+}
+
+type chatServiceOnP2PChatReqClient struct {
+	grpc.ClientStream
+}
+
+func (x *chatServiceOnP2PChatReqClient) Recv() (*P2PChatRes, error) {
+	m := new(P2PChatRes)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // ChatServiceServer is the server API for ChatService service.
 // All implementations must embed UnimplementedChatServiceServer
 // for forward compatibility
 type ChatServiceServer interface {
 	OnLoginReq(context.Context, *LoginReq) (*LoginRes, error)
 	OnRegisterReq(context.Context, *RegisterReq) (*RegisterRes, error)
+	OnShowAllUserOnline(context.Context, *ShowAllUserOnlineReq) (*ShowAllUserOnlineRes, error)
+	OnP2PChatReq(*P2PChatReq, ChatService_OnP2PChatReqServer) error
 	mustEmbedUnimplementedChatServiceServer()
 }
 
@@ -70,6 +115,12 @@ func (UnimplementedChatServiceServer) OnLoginReq(context.Context, *LoginReq) (*L
 }
 func (UnimplementedChatServiceServer) OnRegisterReq(context.Context, *RegisterReq) (*RegisterRes, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method OnRegisterReq not implemented")
+}
+func (UnimplementedChatServiceServer) OnShowAllUserOnline(context.Context, *ShowAllUserOnlineReq) (*ShowAllUserOnlineRes, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method OnShowAllUserOnline not implemented")
+}
+func (UnimplementedChatServiceServer) OnP2PChatReq(*P2PChatReq, ChatService_OnP2PChatReqServer) error {
+	return status.Errorf(codes.Unimplemented, "method OnP2PChatReq not implemented")
 }
 func (UnimplementedChatServiceServer) mustEmbedUnimplementedChatServiceServer() {}
 
@@ -120,6 +171,45 @@ func _ChatService_OnRegisterReq_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ChatService_OnShowAllUserOnline_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ShowAllUserOnlineReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ChatServiceServer).OnShowAllUserOnline(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/chatmessage.chatService/onShowAllUserOnline",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ChatServiceServer).OnShowAllUserOnline(ctx, req.(*ShowAllUserOnlineReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ChatService_OnP2PChatReq_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(P2PChatReq)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ChatServiceServer).OnP2PChatReq(m, &chatServiceOnP2PChatReqServer{stream})
+}
+
+type ChatService_OnP2PChatReqServer interface {
+	Send(*P2PChatRes) error
+	grpc.ServerStream
+}
+
+type chatServiceOnP2PChatReqServer struct {
+	grpc.ServerStream
+}
+
+func (x *chatServiceOnP2PChatReqServer) Send(m *P2PChatRes) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 // ChatService_ServiceDesc is the grpc.ServiceDesc for ChatService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -135,7 +225,17 @@ var ChatService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "onRegisterReq",
 			Handler:    _ChatService_OnRegisterReq_Handler,
 		},
+		{
+			MethodName: "onShowAllUserOnline",
+			Handler:    _ChatService_OnShowAllUserOnline_Handler,
+		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "onP2PChatReq",
+			Handler:       _ChatService_OnP2PChatReq_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "chatmessage.proto",
 }

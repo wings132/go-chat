@@ -18,6 +18,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+
 func init() {
 	// 初始化 redis 连接池，全局唯一
 	redisInfo := config.Configuration.RedisInfo
@@ -35,8 +36,8 @@ func init() {
 // 这个 go routine 专门用来处理服务器和客户端的通信
 func dialogue(conn net.Conn) {
 	//defer conn.Close()
-	processor := process.Processor{Conn: conn}
-	processor.MainProcess()
+	//processor := process.Processor{Conn: conn}
+	//processor.MainProcess()
 }
 
 func dbOps() {
@@ -127,7 +128,11 @@ func main() {
 
 	s := grpc.NewServer()
 
-	pb.RegisterChatServiceServer(s, &process.Processor{})
+
+	p := process.Processor{}
+	p.ClientConnsMap = make(map[string]string)
+
+	pb.RegisterChatServiceServer(s, &p)
 	log.Printf("server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)

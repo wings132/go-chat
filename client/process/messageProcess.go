@@ -95,10 +95,7 @@ func (msgp *MessageProcess) GetOnlineUerList() (err error) {
 		return
 	}
 
-	for {
-		showAfterLoginMenu()
-	}
-
+	return nil
 }
 
 func (msgp *MessageProcess) PointToPointCommunication(targetUserName, sourceUserName, message string) (err error) {

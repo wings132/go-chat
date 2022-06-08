@@ -25,6 +25,8 @@ func main() {
 	}
 	defer conn.Close()
 
+	up := process.UserProcess{Conn:conn}
+
 	for loop {
 		logger.Info("\n----------------Welcome to the chat room--------------\n")
 		logger.Info("\t\tSelect the options：\n")
@@ -45,12 +47,13 @@ func main() {
 			ps, _ := gp.GetPasswdMasked()
 			password = string(ps)
 
-			// err := login(userName, password)
-			up := process.UserProcess{Conn:conn}
 			ret := up.Login(userName, password)
 
 			if ret {
 				logger.Success("Login succeed!\r\n")
+				for {
+					up.ShowAfterLoginMenu()
+				}
 			} else {
 				logger.Error("Login failed\r\n")
 				return
@@ -68,7 +71,6 @@ func main() {
 			ps, _ := gp.GetPasswdMasked()
 			password = string(ps)
 
-			up := process.UserProcess{Conn:conn}
 			ret := up.Register(userName, password)
 			if !ret {
 				logger.Error("Create account failed: %v\n", err)
